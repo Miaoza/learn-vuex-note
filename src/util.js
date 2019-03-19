@@ -64,7 +64,7 @@ export function isPromise(val) {
 
 /**
  * 断言
- * @param {*} condition 条件
+ * @param {*} condition 条件 true|false
  * @param {*} msg
  */
 export function assert(condition, msg) {

@@ -22,6 +22,7 @@ export default function(Vue) {
   /**
    * Vuex init hook, injected into each instances init hooks list.
    */
+  // 把 options.store 保存在所有组件的 this.$store 中
   // Vuex 初始化代码，根组件从这里拿到 store，子组件从父组件拿到 store
   function vuexInit() {
     const options = this.$options
@@ -37,3 +38,18 @@ export default function(Vue) {
     }
   }
 }
+
+/**
+ * 在 import Vuex 之后，
+ * 实例化其中的 Store 对象，
+ * 返回 store 实例并传入 new Vue 的 options 中，
+ * 也就是 options.store
+  export default new Vuex.Store({
+  actions,
+  getters,
+  state,
+  mutations,
+  modules
+  // ...
+  })
+ */

@@ -7,6 +7,7 @@ let Vue // bind on install
 
 // Store: Vuex 提供的状态存储类
 // Store 构造函数
+// Store 的实例化过程拆成 3 个部分，分别是初始化模块，安装模块和初始化 store._vm
 export class Store {
   constructor(options = {}) {
     // Auto install if it is not done yet and `window` has `Vue`.
@@ -34,15 +35,18 @@ export class Store {
     const { plugins = [], strict = false } = options
 
     // store internal state
-    this._committing = false
-    this._actions = Object.create(null)
-    this._actionSubscribers = []
-    this._mutations = Object.create(null)
-    this._wrappedGetters = Object.create(null)
-    this._modules = new ModuleCollection(options)
-    this._modulesNamespaceMap = Object.create(null)
-    this._subscribers = []
-    this._watcherVM = new Vue()
+    this._committing = false // 判断严格模式下是否是通过 mutation 改变 state
+    this._actions = Object.create(null) // 存放用户定义的所有的 actions
+    this._actionSubscribers = [] // 存放所有 action 的订阅
+    this._mutations = Object.create(null) // 存放所有的 mutation
+    this._wrappedGetters = Object.create(null) // 存放所有包装后的 getter
+    // 从数据结构上来看，模块的设计就是一个树型结构，
+    // store 本身可以理解为一个 root module，它下面的 modules 就是子模块，
+    // Vuex 需要完成这颗树的构建，构建过程的入口就是：ModuleCollection
+    this._modules = new ModuleCollection(options) // 初始化模块:存放 module 树(./module/module-collection)
+    this._modulesNamespaceMap = Object.create(null) // 存放 namespaced 的模块
+    this._subscribers = [] // 存放所有 mutation 变化的订阅
+    this._watcherVM = new Vue() // Vue 对象的实例，响应式地监测一个 getter 方法的返回值
 
     // bind commit and dispatch to self
     const store = this
@@ -62,6 +66,7 @@ export class Store {
     // init root module.
     // this also recursively registers all sub-modules
     // and collects all module getters inside this._wrappedGetters
+    // 安装模块
     installModule(this, state, [], this._modules.root)
 
     // initialize the store vm, which is responsible for the reactivity
@@ -315,12 +320,22 @@ function resetStoreVM(store, state, hot) {
   }
 }
 
+/**
+ *
+ * @param {*} store
+ * @param {*} rootState
+ * @param {*} path 模块的访问路径s
+ * @param {*} module 当前的模块
+ * @param {*} hot 是否是热更新
+ */
 function installModule(store, rootState, path, module, hot) {
   const isRoot = !path.length
+  // 根据 path 获取 namespace
   const namespace = store._modules.getNamespace(path)
 
   // register in namespace map
   if (module.namespaced) {
+    // 把 namespace 对应的模块保存下来，为了方便以后能根据 namespace 查找模块
     store._modulesNamespaceMap[namespace] = module
   }
 
@@ -329,10 +344,19 @@ function installModule(store, rootState, path, module, hot) {
     const parentState = getNestedState(rootState, path.slice(0, -1))
     const moduleName = path[path.length - 1]
     store._withCommit(() => {
+      // Vue.set( target, key, value )
+      // {Object | Array} target
+      // {string | number} key
+      // {any} value
+      // 向响应式对象中添加一个属性，并确保这个新属性同样是响应式的，且触发视图更新。
+      // 它必须用于向响应式对象上添加新属性，
+      // 因为 Vue 无法探测普通的新增属性 (比如 this.myObject.newProperty = 'hi')
+      // 注意对象不能是 Vue 实例，或者 Vue 实例的根数据对象
       Vue.set(parentState, moduleName, module.state)
     })
   }
 
+  // 构造了一个本地上下文环境
   const local = (module.context = makeLocalContext(store, namespace, path))
 
   module.forEachMutation((mutation, key) => {
