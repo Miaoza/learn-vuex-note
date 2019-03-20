@@ -14,7 +14,7 @@ export class Store {
     // To allow users to avoid auto-installation in some cases,
     // this code should be placed here. See #731
     if (!Vue && typeof window !== 'undefined' && window.Vue) {
-      install(window.Vue) // 安装
+      install(window.Vue) // 安装 Vue 对象
     }
 
     if (process.env.NODE_ENV !== 'production') {
@@ -77,6 +77,8 @@ export class Store {
     resetStoreVM(this, state)
 
     // apply plugins
+    // Vuex 的 store 接受 plugins 选项，
+    // 我们在实例化 Store 的时候可以传入插件，它是一个数组
     plugins.forEach(plugin => plugin(this))
 
     const useDevtools =
@@ -92,10 +94,17 @@ export class Store {
 
   set state(v) {
     if (process.env.NODE_ENV !== 'production') {
+      // 非生产环境，修改state会打印错误信息
       assert(false, `use store.replaceState() to explicit replace store state.`)
     }
   }
 
+  /**
+   * 分发 mutation
+   * @param {*} _type mutation 的 type
+   * @param {*} _payload 额外的参数
+   * @param {*} _options 一些配置
+   */
   commit(_type, _payload, _options) {
     // check object-style commit
     const { type, payload, options } = unifyObjectStyle(
@@ -105,6 +114,7 @@ export class Store {
     )
 
     const mutation = { type, payload }
+    // 获取当前 type 对应保存下来的 mutations 数组
     const entry = this._mutations[type]
     if (!entry) {
       if (process.env.NODE_ENV !== 'production') {
@@ -114,6 +124,8 @@ export class Store {
     }
 
     this._withCommit(() => {
+      // 遍历它们执行获取到每个 handler 然后执行，
+      // 实际上就是执行了 wrappedMutationHandler(playload)
       entry.forEach(function commitIterator(handler) {
         handler(payload)
       })
@@ -129,6 +141,11 @@ export class Store {
     }
   }
 
+  /**
+   * 调用 action 的 dispatch 方法
+   * @param {*} _type  action 的 type
+   * @param {*} _payload 额外的参数
+   */
   dispatch(_type, _payload) {
     // check object-style dispatch
     const { type, payload } = unifyObjectStyle(_type, _payload)
@@ -362,7 +379,7 @@ function resetStoreVM(store, state, hot) {
  * 并且通过递归遍历的方式，完成了所有子模块的安装工作
  * @param {*} store
  * @param {*} rootState
- * @param {*} path 模块的访问路径s
+ * @param {*} path 模块的访问路径
  * @param {*} module 当前的模块
  * @param {*} hot 是否是热更新
  */
@@ -594,10 +611,10 @@ function registerGetter(store, type, rawGetter, local) {
   store._wrappedGetters[type] = function wrappedGetter(store) {
     // rawGetter 就是用户定义的 getter 函数
     return rawGetter(
-      local.state, // local state
-      local.getters, // local getters
-      store.state, // root state
-      store.getters // root getters
+      local.state, // local state 当前 module 下的 state
+      local.getters, // local getters 当前 module 下的 getters
+      store.state, // root state 全局的 state
+      store.getters // root getters 全局的 getters
     )
   }
 }

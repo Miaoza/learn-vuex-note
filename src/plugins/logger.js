@@ -2,6 +2,7 @@
 
 import { deepCopy } from '../util'
 
+// Logger 插件
 export default function createLogger({
   collapsed = true,
   filter = (mutation, stateBefore, stateAfter) => true,
@@ -10,13 +11,15 @@ export default function createLogger({
   logger = console
 } = {}) {
   return store => {
-    let prevState = deepCopy(store.state)
+    let prevState = deepCopy(store.state) // 之前的 state
 
+    // 往 this._subscribers 去添加一个函数，
+    // 并返回一个 unsubscribe 的方法
     store.subscribe((mutation, state) => {
       if (typeof logger === 'undefined') {
         return
       }
-      const nextState = deepCopy(state)
+      const nextState = deepCopy(state) // 提交 mutation 后的 state
 
       if (filter(mutation, prevState, nextState)) {
         const time = new Date()
@@ -58,15 +61,27 @@ export default function createLogger({
         }
       }
 
-      prevState = nextState
+      prevState = nextState // 更新 prevState = nextState，为下一次提交 mutation 输出日志做准备
     })
   }
 }
 
+/**
+ * 重复对应时间值前的0
+ * @param {*} str '0'
+ * @param {*} times 重复次数
+ */
 function repeat(str, times) {
+  // new Array(3+1).join('0):'000'
   return new Array(times + 1).join(str)
 }
 
+/**
+ * 格式化对应时间值
+ * @param {*} num 值
+ * @param {*} maxLength 值最大长度
+ */
 function pad(num, maxLength) {
+  // num.toString().length 值长度
   return repeat('0', maxLength - num.toString().length) + num
 }

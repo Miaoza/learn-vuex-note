@@ -6,7 +6,7 @@ export default function(Vue) {
   const version = Number(Vue.version.split('.')[0])
   // 判断版本号是否>2
   if (version >= 2) {
-    // 将 vuexInit 混入 beforeCreated
+    // 将 vuexInit 混入 beforeCreate
     Vue.mixin({ beforeCreate: vuexInit })
   } else {
     // override init and inject vuex init procedure
@@ -25,7 +25,7 @@ export default function(Vue) {
   // 把 options.store 保存在所有组件的 this.$store 中
   // Vuex 初始化代码，根组件从这里拿到 store，子组件从父组件拿到 store
   function vuexInit() {
-    const options = this.$options
+    const options = this.$options // 当前 Vue 实例的初始化选项
     // store injection
     // 如果当前组件是根组件，会从 Vue 的 options 获取 store
     // 如果不是 root，会从父组件获取 store

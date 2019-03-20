@@ -1,7 +1,6 @@
 ###
 
-learn vuex code some notes
-vuex v3.1.0
+learn vuex code some notes(vuex v3.1.0)
 
 ###
 
@@ -34,8 +33,17 @@ Vue.js 提供 Vue.use 方法来给 Vue.js 安装插件，
 ###
 
 new Vue({
+
+#
+
 el: '#app',
-store // 在 beforeCreated 钩子中会用到
+
+#
+
+store // 在 beforeCreate 钩子中会用到
+
+#
+
 });
 
 ###
