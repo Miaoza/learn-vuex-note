@@ -67,10 +67,13 @@ export class Store {
     // this also recursively registers all sub-modules
     // and collects all module getters inside this._wrappedGetters
     // 安装模块
+    // 对模块中的 state、getters、mutations、actions 做初始化工作
     installModule(this, state, [], this._modules.root)
 
     // initialize the store vm, which is responsible for the reactivity
     // (also registers _wrappedGetters as computed properties)
+    // 初始化
+    // 执行初始化 store._vm 的逻辑
     resetStoreVM(this, state)
 
     // apply plugins
@@ -244,6 +247,11 @@ export class Store {
     resetStore(this, true)
   }
 
+  /**
+   * 对 fn 包装了一个环境，确保在 fn 中执行任何逻辑的时候 this._committing = true
+   * 外部任何非通过 Vuex 提供的接口直接操作修改 state 的行为都会在开发阶段触发警告
+   * @param {*} fn
+   */
   _withCommit(fn) {
     const committing = this._committing
     this._committing = true
@@ -276,6 +284,12 @@ function resetStore(store, hot) {
   resetStoreVM(store, state, hot)
 }
 
+/**
+ * 实际上是想建立 getters 和 state 的联系
+ * @param {*} store
+ * @param {*} state
+ * @param {*} hot
+ */
 function resetStoreVM(store, state, hot) {
   const oldVm = store._vm
 
@@ -283,9 +297,28 @@ function resetStoreVM(store, state, hot) {
   store.getters = {}
   const wrappedGetters = store._wrappedGetters
   const computed = {}
+  // 首先遍历了 _wrappedGetters 获得每个 getter 的函数 fn 和 key，
+  // 然后定义了 computed[key] = () => fn(store)
   forEachValue(wrappedGetters, (fn, key) => {
+    /**
+     * fn(store) 相当于执行:
+     * store._wrappedGetters[type] = function wrappedGetter (store) {
+     *   return rawGetter(
+     *     local.state, // local state
+     *     local.getters, // local getters
+     *     store.state, // root state
+     *     store.state, // root state
+     *     store.getters // root getters
+     *   )
+     * }
+     */
     computed[key] = () => fn(store)
     Object.defineProperty(store.getters, key, {
+      // 当我根据 key 访问 store.getters 的某一个 getter 的时候，
+      // 实际上就是访问了 store._vm[key]，也就是 computed[key]
+      // 在执行 computed[key] 对应的函数的时候，会执行 rawGetter(local.state,...) 方法，
+      // 那么就会访问到 store.state，
+      // 进而访问到 store._vm._data.$$state，这样就建立了一个依赖关系
       get: () => store._vm[key],
       enumerable: true // for local getters
     })
@@ -296,6 +329,10 @@ function resetStoreVM(store, state, hot) {
   // some funky global mixins
   const silent = Vue.config.silent
   Vue.config.silent = true
+  // 实例化一个 Vue 实例 store._vm，并把 computed 传入
+  // 访问 store.state 的时候，
+  // 实际上会访问 Store 类上定义的 state 的 get 方法，
+  // 实际上访问了 store._vm._data.$$state
   store._vm = new Vue({
     data: {
       $$state: state
@@ -321,7 +358,8 @@ function resetStoreVM(store, state, hot) {
 }
 
 /**
- *
+ * 完成了模块下的 state、getters、actions、mutations 的初始化工作，
+ * 并且通过递归遍历的方式，完成了所有子模块的安装工作
  * @param {*} store
  * @param {*} rootState
  * @param {*} path 模块的访问路径s
@@ -359,22 +397,31 @@ function installModule(store, rootState, path, module, hot) {
   // 构造了一个本地上下文环境
   const local = (module.context = makeLocalContext(store, namespace, path))
 
+  // 注册 mutation
+  // 遍历模块中的 mutations 的定义，拿到每一个 mutation 和 key
   module.forEachMutation((mutation, key) => {
-    const namespacedType = namespace + key
-    registerMutation(store, namespacedType, mutation, local)
+    const namespacedType = namespace + key // 把 key 拼接上 namespace
+    registerMutation(store, namespacedType, mutation, local) // 执行 registerMutation 方法
   })
 
+  // 注册 action
+  // 历模块中的 actions 的定义，拿到每一个 action 和 key
   module.forEachAction((action, key) => {
+    // 判断 action.root，如果否的情况把 key 拼接上 namespace
     const type = action.root ? key : namespace + key
     const handler = action.handler || action
-    registerAction(store, type, handler, local)
+    registerAction(store, type, handler, local) // 执行 registerAction 方法
   })
 
+  // 注册 getter
+  // 遍历模块中的 getters 的定义，拿到每一个 getter 和 key
   module.forEachGetter((getter, key) => {
-    const namespacedType = namespace + key
-    registerGetter(store, namespacedType, getter, local)
+    const namespacedType = namespace + key // 把 key 拼接上 namespace
+    registerGetter(store, namespacedType, getter, local) // 执行 registerGetter 方法
   })
 
+  // 安装模块
+  // 遍历模块中的所有子 modules，递归执行 installModule 方法
   module.forEachChild((child, key) => {
     installModule(store, rootState, path.concat(key), child, hot)
   })
@@ -384,10 +431,19 @@ function installModule(store, rootState, path, module, hot) {
  * make localized dispatch, commit, getters and state
  * if there is no namespace, just use root ones
  */
+/**
+ * 构造 local 上下文
+ * @param {*} store root store
+ * @param {*} namespace 模块的命名空间
+ * @param {*} path 模块的 path
+ */
 function makeLocalContext(store, namespace, path) {
   const noNamespace = namespace === ''
 
+  // 定义了 local 对象
   const local = {
+    // 如果没有 namespace，直接指向 root store 的 dispatch 和 commit 方法
+    // 否则会创建方法，把 type 自动拼接上 namespace，然后执行 store 上对应的方法
     dispatch: noNamespace
       ? store.dispatch
       : (_type, _payload, _options) => {
@@ -441,6 +497,9 @@ function makeLocalContext(store, namespace, path) {
 
   // getters and state object must be gotten lazily
   // because they will be changed by vm update
+  // 对于 getters 而言，如果没有 namespace，
+  // 则直接返回 root store 的 getters，
+  // 否则返回 makeLocalGetters(store, namespace) 的返回值
   Object.defineProperties(local, {
     getters: {
       get: noNamespace
@@ -458,17 +517,23 @@ function makeLocalContext(store, namespace, path) {
 function makeLocalGetters(store, namespace) {
   const gettersProxy = {}
 
+  // 首先获取了 namespace 的长度
   const splitPos = namespace.length
+  // 然后遍历 root store 下的所有 getters
   Object.keys(store.getters).forEach(type => {
     // skip if the target getter is not match this namespace
+    // 先判断它的类型是否匹配 namespace
     if (type.slice(0, splitPos) !== namespace) return
 
     // extract local getter type
+    // 匹配的时候我们从 namespace 的位置截取后面的字符串得到 localType
     const localType = type.slice(splitPos)
 
     // Add a port to the getters proxy.
     // Define as getter property because
     // we do not want to evaluate the getters in this time.
+    // 定义了 gettersProxy
+    // 获取 localType 实际上是访问了 store.getters[type]
     Object.defineProperty(gettersProxy, localType, {
       get: () => store.getters[type],
       enumerable: true
@@ -478,13 +543,16 @@ function makeLocalGetters(store, namespace) {
   return gettersProxy
 }
 
+// 实际上就是给 root store 上的 _mutations[types] 添加 wrappedMutationHandler 方法
 function registerMutation(store, type, handler, local) {
+  // 同一 type 的 _mutations 可以对应多个方法
   const entry = store._mutations[type] || (store._mutations[type] = [])
   entry.push(function wrappedMutationHandler(payload) {
     handler.call(store, local.state, payload)
   })
 }
 
+// 实际上就是给 root store 上的 _actions[types] 添加 wrappedActionHandler 方法
 function registerAction(store, type, handler, local) {
   const entry = store._actions[type] || (store._actions[type] = [])
   entry.push(function wrappedActionHandler(payload, cb) {
@@ -515,6 +583,7 @@ function registerAction(store, type, handler, local) {
   })
 }
 
+// 实际上就是给 root store 上的 _wrappedGetters[key] 指定 wrappedGetter 方法
 function registerGetter(store, type, rawGetter, local) {
   if (store._wrappedGetters[type]) {
     if (process.env.NODE_ENV !== 'production') {
@@ -523,6 +592,7 @@ function registerGetter(store, type, rawGetter, local) {
     return
   }
   store._wrappedGetters[type] = function wrappedGetter(store) {
+    // rawGetter 就是用户定义的 getter 函数
     return rawGetter(
       local.state, // local state
       local.getters, // local getters
@@ -532,6 +602,10 @@ function registerGetter(store, type, rawGetter, local) {
   }
 }
 
+/**
+ * 严格模式下，store._vm 会添加一个 wathcer 来观测 this._data.$$state 的变化
+ * @param {*} store
+ */
 function enableStrictMode(store) {
   store._vm.$watch(
     function() {
@@ -539,6 +613,7 @@ function enableStrictMode(store) {
     },
     () => {
       if (process.env.NODE_ENV !== 'production') {
+        // 当 store.state 被修改的时候, store._committing 必须为 true，否则在开发阶段会报警告
         assert(
           store._committing,
           `do not mutate vuex store state outside mutation handlers.`
@@ -550,6 +625,7 @@ function enableStrictMode(store) {
 }
 
 function getNestedState(state, path) {
+  // 从 root state 开始，通过 path.reduce 方法一层层查找子模块 state，最终找到目标模块的 state
   return path.length ? path.reduce((state, key) => state[key], state) : state
 }
 

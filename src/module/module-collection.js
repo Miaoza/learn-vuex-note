@@ -22,7 +22,8 @@ export default class ModuleCollection {
   getNamespace(path) {
     // 从 root module 开始，
     // 通过 reduce 方法一层层找子模块，
-    // 如果发现该模块配置了 namespaced 为 true，则把该模块的 key 拼到 namesapce 中，
+    // 如果发现该模块配置了 namespaced 为 true，
+    // 则把该模块的 key 拼到 namesapce 中，
     // 最终返回完整的 namespace 字符串
     let module = this.root
     return path.reduce((namespace, key) => {
