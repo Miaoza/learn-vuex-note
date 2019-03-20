@@ -17,7 +17,8 @@ export default class Module {
     const rawState = rawModule.state
 
     // Store the origin module's state
-    this.state = (typeof rawState === 'function' ? rawState() : rawState) || {} // 当前模块定义的 state
+    // 当前模块定义的 state
+    this.state = (typeof rawState === 'function' ? rawState() : rawState) || {}
   }
 
   get namespaced() {
@@ -42,7 +43,7 @@ export default class Module {
     delete this._children[key]
   }
 
-  // 返回当前模块的 _children 中对应 key 的模块
+  // 返回当前模块的 _children 中 key 对应的模块
   getChild(key) {
     return this._children[key]
   }
@@ -69,6 +70,7 @@ export default class Module {
    * @param {*} fn
    */
   forEachChild(fn) {
+    // 循环Object
     forEachValue(this._children, fn)
   }
 

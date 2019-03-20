@@ -9,6 +9,7 @@ let Vue // bind on install
 // Store 构造函数
 // Store 的实例化过程拆成 3 个部分，分别是初始化模块，安装模块和初始化 store._vm
 export class Store {
+  // options: new Vuex.Store(options)
   constructor(options = {}) {
     // Auto install if it is not done yet and `window` has `Vue`.
     // To allow users to avoid auto-installation in some cases,
@@ -38,8 +39,8 @@ export class Store {
     this._committing = false // 判断严格模式下是否是通过 mutation 改变 state
     this._actions = Object.create(null) // 存放用户定义的所有的 actions
     this._actionSubscribers = [] // 存放所有 action 的订阅
-    this._mutations = Object.create(null) // 存放所有的 mutation
-    this._wrappedGetters = Object.create(null) // 存放所有包装后的 getter
+    this._mutations = Object.create(null) // 存放所有的 mutations
+    this._wrappedGetters = Object.create(null) // 存放所有包装后的 getters
     // 从数据结构上来看，模块的设计就是一个树型结构，
     // store 本身可以理解为一个 root module，它下面的 modules 就是子模块，
     // Vuex 需要完成这颗树的构建，构建过程的入口就是：ModuleCollection
@@ -61,7 +62,7 @@ export class Store {
     // strict mode
     this.strict = strict
 
-    const state = this._modules.root.state
+    const state = this._modules.root.state // 根模块state
 
     // init root module.
     // this also recursively registers all sub-modules
@@ -78,7 +79,7 @@ export class Store {
 
     // apply plugins
     // Vuex 的 store 接受 plugins 选项，
-    // 我们在实例化 Store 的时候可以传入插件，它是一个数组
+    // 实例化 Store 的时候可以传入插件，它是一个数组
     plugins.forEach(plugin => plugin(this))
 
     const useDevtools =

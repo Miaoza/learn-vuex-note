@@ -8,8 +8,8 @@ export default class ModuleCollection {
   }
 
   /**
-   *
-   * @param {*} path 的父模块的 path
+   * 获取对应的模块模块
+   * @param {*} path 父模块的 path
    */
   get(path) {
     // 从根模块开始，通过 reduce 方法一层层去找到对应的模块，
@@ -37,7 +37,7 @@ export default class ModuleCollection {
   }
 
   /**
-   *
+   * 递归注册module
    * @param {*} path 在构建树的过程中维护的路径
    * @param {*} rawModule 定义模块的原始配置
    * @param {*} runtime 是否是一个运行时创建的模块
@@ -52,20 +52,26 @@ export default class ModuleCollection {
       // path 的长度如果为 0，则说明它是一个根模块
       this.root = newModule
     } else {
-      // 根据路径获取到父模块，再调用父模块的 addChild 方法建立父子关系
+      // 根据路径获取到父模块
       const parent = this.get(path.slice(0, -1))
+      // 调用父模块的 addChild 方法建立父子关系
       parent.addChild(path[path.length - 1], newModule)
     }
 
     // register nested modules
     if (rawModule.modules) {
-      // 遍历当前模块定义中的所有 modules，根据 key 作为 path，递归调用 register 方法
+      // 遍历当前模块定义中的所有 modules，根据 key 作为 path，递归调用 register 方法，
+      // 逐个注册，最终形成一个树
       forEachValue(rawModule.modules, (rawChildModule, key) => {
         this.register(path.concat(key), rawChildModule, runtime)
       })
     }
   }
 
+  /**
+   * 模块注销
+   * @param {*} path
+   */
   unregister(path) {
     const parent = this.get(path.slice(0, -1))
     const key = path[path.length - 1]
@@ -75,6 +81,12 @@ export default class ModuleCollection {
   }
 }
 
+/**
+ * 更新模块树
+ * @param {*} path 路径
+ * @param {*} targetModule 模板模块
+ * @param {*} newModule 更新后的模块
+ */
 function update(path, targetModule, newModule) {
   if (process.env.NODE_ENV !== 'production') {
     assertRawModule(path, newModule)
@@ -82,11 +94,14 @@ function update(path, targetModule, newModule) {
 
   // update target module
   targetModule.update(newModule)
+  // Module update方法更新当前模块
 
-  // update nested modules
+  // update nested(嵌套的) modules
   if (newModule.modules) {
+    // for start
     for (const key in newModule.modules) {
       if (!targetModule.getChild(key)) {
+        // 子模块不存在直接返回
         if (process.env.NODE_ENV !== 'production') {
           console.warn(
             `[vuex] trying to add a new module '${key}' on hot reloading, ` +
@@ -101,6 +116,7 @@ function update(path, targetModule, newModule) {
         newModule.modules[key]
       )
     }
+    // for end
   }
 }
 
@@ -122,6 +138,12 @@ const assertTypes = {
   actions: objectAssert
 }
 
+/**
+ * 在非生产环境下检测options中getters,mutations，actions的定义是否符合规范，
+ * 不符合会给出提示
+ * @param {*} path
+ * @param {*} rawModule
+ */
 function assertRawModule(path, rawModule) {
   Object.keys(assertTypes).forEach(key => {
     if (!rawModule[key]) return
@@ -137,6 +159,7 @@ function assertRawModule(path, rawModule) {
   })
 }
 
+// 生成断言的msg
 function makeAssertionMessage(path, key, type, value, expected) {
   let buf = `${key} should be ${expected} but "${key}.${type}"`
   if (path.length > 0) {
