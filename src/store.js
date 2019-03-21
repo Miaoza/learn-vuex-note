@@ -133,7 +133,7 @@ export class Store {
       })
     })
 
-    // 遍历 this._subscribers 执行对应的回调函数
+    // 通知所有订阅者，遍历 this._subscribers 执行对应的回调函数
     this._subscribers.forEach(sub => sub(mutation, this.state))
 
     if (process.env.NODE_ENV !== 'production' && options && options.silent) {
@@ -215,7 +215,7 @@ export class Store {
   }
 
   /**
-   * 监听 getter 返回的变化
+   * 监听 getter 方法
    * @param {*} getter
    * @param {*} cb 回调函数
    * @param {*} options
@@ -228,7 +228,7 @@ export class Store {
         `store.watch only accepts a function.`
       )
     }
-    // store._vm 添加一个 wathcer 来观测 state 的变化
+    // _watcherVM 是一个 Vue 的实例
     return this._watcherVM.$watch(
       () => getter(this.state, this.getters),
       cb,
@@ -417,6 +417,7 @@ function resetStoreVM(store, state, hot) {
   }
 
   if (oldVm) {
+    // 解除旧 vm 对 state 的 引用，以及销毁旧的 Vue 对象
     if (hot) {
       // dispatch changes in all subscribed watchers
       // to force getter re-evaluation for hot reloading.
