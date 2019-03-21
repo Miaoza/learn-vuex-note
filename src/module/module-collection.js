@@ -69,7 +69,7 @@ export default class ModuleCollection {
   }
 
   /**
-   * 模块注销
+   * 模块注销(只会移除运行时动态创建的模块)
    * @param {*} path
    */
   unregister(path) {

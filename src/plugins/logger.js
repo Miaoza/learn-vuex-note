@@ -85,3 +85,12 @@ function pad(num, maxLength) {
   // num.toString().length 值长度
   return repeat('0', maxLength - num.toString().length) + num
 }
+
+/**
+ * 插件调用:
+ * import createLogger from 'vuex/dist/logger'
+ * export default new Vuex.Store({
+ *   ...
+ *   plugins: process.env.NODE_ENV !== 'production' ? [createLogger()] : []
+ * })
+ */
